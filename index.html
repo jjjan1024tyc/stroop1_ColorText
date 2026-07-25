@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>史楚普挑戰：一字版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+            overscroll-behavior-y: none;
+        }
+
+        @keyframes flash-correct {
+            0% { box-shadow: inset 0 0 0 0px rgba(34, 197, 94, 0); }
+            50% { box-shadow: inset 0 0 0 20px rgba(34, 197, 94, 0.4); }
+            100% { box-shadow: inset 0 0 0 0px rgba(34, 197, 94, 0); }
+        }
+
+        @keyframes flash-wrong {
+            0% { box-shadow: inset 0 0 0 0px rgba(239, 68, 68, 0); }
+            50% { box-shadow: inset 0 0 0 20px rgba(239, 68, 68, 0.4); }
+            100% { box-shadow: inset 0 0 0 0px rgba(239, 68, 68, 0); }
+        }
+
+        .correct-feedback { animation: flash-correct 0.3s ease-out; }
+        .wrong-feedback { animation: flash-wrong 0.3s ease-out; }
+
+        @keyframes pop-in {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in { animation: pop-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        .boss-mode { background: radial-gradient(circle, #fff 0%, #ffe4e6 100%); }
+
+        /* 載入動畫 */
+        .loading-dot::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { color: rgba(255,255,255,0); text-shadow: 0 0 0 rgba(255,255,255,0); }
+            40% { color: white; text-shadow: 10px 0 0 rgba(255,255,255,0), 20px 0 0 rgba(255,255,255,0); }
+            60% { text-shadow: 10px 0 0 white, 20px 0 0 rgba(255,255,255,0); }
+            80%, 100% { text-shadow: 10px 0 0 white, 20px 0 0 white; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-[100dvh] w-screen overflow-hidden flex flex-col font-sans select-none" id="game-container">
+
+    <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-6 space-y-8 absolute inset-0 bg-white z-20">
+        <div class="text-center space-y-4">
+            <h1 class="text-5xl md:text-6xl font-black text-slate-800 tracking-tight">史楚普挑戰</h1>
+            <div class="inline-block bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full text-xl font-bold">
+                闖關模式 (共 5 關)
+            </div>
+        </div>
+        
+        <div class="bg-blue-50 border-l-8 border-blue-500 p-6 rounded-r-2xl max-w-lg w-full shadow-sm">
+            <h3 class="text-2xl font-bold mb-4 text-blue-800">遊戲規則：</h3>
+            <p class="text-xl leading-relaxed text-slate-700">
+                請用最快的速度，點擊<strong class="text-red-500 font-black text-2xl mx-1">文字的顏色</strong>！<br>
+                注意：第3關開始會有「雙字連擊」喔！<br>
+                <span class="text-sm text-slate-500 mt-2 block">🔔 建議開啟聲音，連擊越高聲音會越酷！</span>
+            </p>
+        </div>
+
+        <!-- 啟動按鈕 (具備連線狀態) -->
+        <button id="start-btn" disabled onclick="initAudioAndStart()" class="mt-8 bg-slate-400 text-white text-3xl font-bold py-6 px-16 rounded-full shadow-lg transform transition w-full max-w-md opacity-80 cursor-not-allowed">
+            <span class="loading-dot">系統連線中</span>
+        </button>
+        
+        <p id="system-status-msg" class="text-slate-400 text-sm font-bold mt-2 h-5">正在與資料庫進行匿名授權連線...</p>
+    </div>
+
+    <div id="play-screen" class="flex-1 flex flex-col hidden h-full w-full">
+        <div class="flex justify-between items-center p-4 md:p-6 bg-white/80 backdrop-blur-sm shadow-sm h-24 shrink-0 z-10">
+            <div class="flex flex-col">
+                <span class="text-sm font-bold text-slate-400 uppercase tracking-wider" id="level-title">第 1 關</span>
+                <span id="timer-display" class="text-4xl font-black text-slate-700 font-mono">30.0s</span>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <span class="text-sm font-bold text-slate-400 uppercase tracking-wider">連擊</span>
+                <span id="combo-display" class="text-3xl font-bold text-orange-500 transition-transform">0</span>
+            </div>
+
+            <div class="flex flex-col items-end">
+                <span class="text-sm font-bold text-slate-400 uppercase tracking-wider">得分</span>
+                <span id="score-display" class="text-4xl font-black text-indigo-600 font-mono">0</span>
+            </div>
+        </div>
+
+        <div class="flex-1 flex items-center justify-center relative overflow-hidden">
+            <div id="feedback-icon" class="absolute top-[10%] opacity-0 text-5xl md:text-6xl font-black transition-opacity duration-200 z-10 text-center w-full"></div>
+            
+            <div id="word-container" class="flex flex-col items-center justify-center space-y-4 md:space-y-8 animate-pop-in">
+                <!-- 文字會從 JS 注入 -->
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 p-4 md:p-6 shrink-0 h-[35vh] md:h-80 bg-slate-100/90 backdrop-blur-sm z-10">
+            <button onclick="checkAnswer('red')" class="color-btn bg-white border-4 border-red-500 text-red-600 active:bg-red-50 text-4xl md:text-5xl font-bold rounded-3xl shadow-sm transform transition active:scale-95 flex items-center justify-center">紅</button>
+            <button onclick="checkAnswer('blue')" class="color-btn bg-white border-4 border-blue-500 text-blue-600 active:bg-blue-50 text-4xl md:text-5xl font-bold rounded-3xl shadow-sm transform transition active:scale-95 flex items-center justify-center">藍</button>
+            <button onclick="checkAnswer('yellow')" class="color-btn bg-white border-4 border-yellow-500 text-yellow-500 active:bg-yellow-50 text-4xl md:text-5xl font-bold rounded-3xl shadow-sm transform transition active:scale-95 flex items-center justify-center">黃</button>
+            <button onclick="checkAnswer('green')" class="color-btn bg-white border-4 border-green-500 text-green-600 active:bg-green-50 text-4xl md:text-5xl font-bold rounded-3xl shadow-sm transform transition active:scale-95 flex items-center justify-center">綠</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="flex-1 flex flex-col items-center justify-center p-6 space-y-4 absolute inset-0 bg-white z-30 hidden overflow-y-auto pb-10">
+        
+        <h2 id="result-title" class="text-3xl md:text-4xl font-black text-slate-800 mt-2">關卡完成！</h2>
+        
+        <div class="bg-indigo-50 p-6 pt-4 rounded-3xl text-center shadow-inner w-full max-w-md flex flex-col items-center relative">
+             <div id="encouragement-text" class="text-lg font-bold text-indigo-400 mb-2 flex items-center space-x-2"></div>
+            <p id="score-label" class="text-xl text-indigo-800 font-bold mb-1">本局總分</p>
+            <p id="final-score" class="text-8xl md:text-[8rem] font-black text-indigo-600 leading-none pb-2">0</p>
+        </div>
+
+        <!-- 每日戰績雲端同步榜 (僅在第5關結束時顯示) -->
+        <div id="daily-history-board" class="hidden w-full max-w-md bg-white border-2 border-slate-200 rounded-3xl p-5 shadow-sm">
+            <h3 class="text-center font-bold text-slate-500 border-b-2 border-slate-100 pb-2 mb-3 flex items-center justify-center">
