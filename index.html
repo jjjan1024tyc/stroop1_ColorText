@@ -37,22 +37,11 @@
         .animate-pop-in { animation: pop-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         
         .boss-mode { background: radial-gradient(circle, #fff 0%, #ffe4e6 100%); }
-
-        /* 載入動畫 */
-        .loading-dot::after {
-            content: '...';
-            animation: dots 1.5s steps(4, end) infinite;
-        }
-        @keyframes dots {
-            0%, 20% { color: rgba(255,255,255,0); text-shadow: 0 0 0 rgba(255,255,255,0); }
-            40% { color: white; text-shadow: 10px 0 0 rgba(255,255,255,0), 20px 0 0 rgba(255,255,255,0); }
-            60% { text-shadow: 10px 0 0 white, 20px 0 0 rgba(255,255,255,0); }
-            80%, 100% { text-shadow: 10px 0 0 white, 20px 0 0 white; }
-        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-[100dvh] w-screen overflow-hidden flex flex-col font-sans select-none" id="game-container">
 
+    <!-- 歡迎與說明畫面 -->
     <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-6 space-y-8 absolute inset-0 bg-white z-20">
         <div class="text-center space-y-4">
             <h1 class="text-5xl md:text-6xl font-black text-slate-800 tracking-tight">史楚普挑戰</h1>
@@ -66,18 +55,19 @@
             <p class="text-xl leading-relaxed text-slate-700">
                 請用最快的速度，點擊<strong class="text-red-500 font-black text-2xl mx-1">文字的顏色</strong>！<br>
                 注意：第3關開始會有「雙字連擊」喔！<br>
-                <span class="text-sm text-slate-500 mt-2 block">🔔 建議開啟聲音，連擊越高聲音會越酷！</span>
+                <span class="text-sm text-slate-500 mt-2 block">🔔 建議開啟聲音，體驗街機打擊感！</span>
             </p>
         </div>
 
-        <!-- 啟動按鈕 (具備連線狀態) -->
-        <button id="start-btn" disabled onclick="initAudioAndStart()" class="mt-8 bg-slate-400 text-white text-3xl font-bold py-6 px-16 rounded-full shadow-lg transform transition w-full max-w-md opacity-80 cursor-not-allowed">
-            <span class="loading-dot">系統連線中</span>
-        </button>
-        
-        <p id="system-status-msg" class="text-slate-400 text-sm font-bold mt-2 h-5">正在與資料庫進行匿名授權連線...</p>
+        <div class="text-center w-full max-w-md mt-4">
+            <button id="start-btn-container" onclick="initAudioAndStart(1)" class="bg-indigo-600 text-white text-3xl font-bold py-6 px-16 rounded-full shadow-lg transform transition w-full opacity-50 cursor-not-allowed" disabled>
+                <span id="start-btn-text">系統連線中...</span>
+            </button>
+            <div id="limit-display" class="text-sm font-bold text-slate-500 mt-3 h-5">連線同步中...</div>
+        </div>
     </div>
 
+    <!-- 遊戲主要畫面 -->
     <div id="play-screen" class="flex-1 flex flex-col hidden h-full w-full">
         <div class="flex justify-between items-center p-4 md:p-6 bg-white/80 backdrop-blur-sm shadow-sm h-24 shrink-0 z-10">
             <div class="flex flex-col">
@@ -91,7 +81,7 @@
             </div>
 
             <div class="flex flex-col items-end">
-                <span class="text-sm font-bold text-slate-400 uppercase tracking-wider">得分</span>
+                <span class="text-sm font-bold text-slate-400 uppercase tracking-wider">本局得分</span>
                 <span id="score-display" class="text-4xl font-black text-indigo-600 font-mono">0</span>
             </div>
         </div>
@@ -112,16 +102,642 @@
         </div>
     </div>
 
-    <div id="result-screen" class="flex-1 flex flex-col items-center justify-center p-6 space-y-4 absolute inset-0 bg-white z-30 hidden overflow-y-auto pb-10">
+    <!-- 關卡結算 / 最終結算畫面 -->
+    <div id="result-screen" class="flex-1 flex flex-col items-center justify-center p-6 space-y-5 absolute inset-0 bg-white z-30 hidden overflow-y-auto pb-10">
         
+        <!-- 動態標題：關卡完成 or 最終成績單 -->
         <h2 id="result-title" class="text-3xl md:text-4xl font-black text-slate-800 mt-2">關卡完成！</h2>
         
         <div class="bg-indigo-50 p-6 pt-4 rounded-3xl text-center shadow-inner w-full max-w-md flex flex-col items-center relative">
-             <div id="encouragement-text" class="text-lg font-bold text-indigo-400 mb-2 flex items-center space-x-2"></div>
+             <!-- 根據表現動態給予的激勵文字 -->
+             <div id="encouragement-text" class="text-lg font-bold text-indigo-500 mb-2 flex items-center space-x-2"></div>
+             
             <p id="score-label" class="text-xl text-indigo-800 font-bold mb-1">本局總分</p>
             <p id="final-score" class="text-8xl md:text-[8rem] font-black text-indigo-600 leading-none pb-2">0</p>
         </div>
 
-        <!-- 每日戰績雲端同步榜 (僅在第5關結束時顯示) -->
-        <div id="daily-history-board" class="hidden w-full max-w-md bg-white border-2 border-slate-200 rounded-3xl p-5 shadow-sm">
-            <h3 class="text-center font-bold text-slate-500 border-b-2 border-slate-100 pb-2 mb-3 flex items-center justify-center">
+        <div class="w-full max-w-md space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl flex flex-col items-center">
+                    <span class="text-2xl mb-1">🎯</span>
+                    <span id="accuracy-label" class="text-sm font-bold text-emerald-600">本局準確率</span>
+                    <span id="accuracy-display" class="text-2xl font-black text-emerald-700">0%</span>
+                </div>
+                <div class="bg-orange-50 border border-orange-200 p-3 rounded-xl flex flex-col items-center">
+                    <span class="text-2xl mb-1">🔥</span>
+                    <span id="combo-label" class="text-sm font-bold text-orange-600">本局最大連擊</span>
+                    <span id="max-combo-display" class="text-2xl font-black text-orange-700">0</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl flex flex-col items-center col-span-2">
+                    <div class="flex justify-around w-full">
+                        <span class="text-base font-bold text-slate-600">正確: <span id="stats-correct" class="text-blue-600 text-xl">0</span></span>
+                        <span class="text-base font-bold text-slate-600">失誤: <span id="stats-wrong" class="text-red-500 text-xl">0</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 每日戰績區塊 -->
+        <div id="daily-history-box" class="w-full max-w-md bg-slate-50 p-5 rounded-2xl shadow-inner border border-slate-200 hidden flex-col mt-2">
+            <h4 class="text-lg font-black text-slate-700 mb-3 border-b border-slate-300 pb-2 flex justify-between">
+                <span>今日戰績</span>
+                <span class="text-indigo-600 text-sm bg-indigo-100 px-2 py-1 rounded-full">已完成 <span id="history-count">0</span>/3 次</span>
+            </h4>
+            <ul id="history-list" class="space-y-2 text-slate-600 font-bold mb-3">
+               <!-- 動態產生 -->
+            </ul>
+            <div class="pt-3 border-t border-slate-300 flex justify-between font-black text-slate-800 text-xl">
+                <span>今日總計得分</span>
+                <span id="history-total-score" class="text-indigo-600">0</span>
+            </div>
+        </div>
+
+        <div id="rest-message-box" class="hidden w-full max-w-md bg-gradient-to-r from-red-500 to-orange-500 rounded-3xl p-6 text-white shadow-xl transform transition-all mt-2">
+            <div class="flex flex-col items-center text-center space-y-3">
+                <div class="text-5xl animate-pulse" id="rest-icon">♨️</div>
+                <h3 class="text-2xl font-black tracking-wide" id="rest-title">大腦 CPU 過熱警告！</h3>
+                <p class="text-lg font-bold opacity-90 leading-relaxed" id="rest-desc">
+                    強制進入散熱模式！今日算力已達極限，請離開螢幕去喝口水降溫，明天再戰！
+                </p>
+            </div>
+        </div>
+
+        <button id="next-level-btn" onclick="goToNextLevel()" class="mt-2 bg-indigo-600 active:bg-indigo-700 text-white text-2xl font-bold py-5 px-12 rounded-full shadow-lg transform transition active:scale-95 w-full max-w-md">
+            進入第 2 關
+        </button>
+
+        <button id="restart-all-btn" onclick="resetToStart()" class="hidden mt-2 text-slate-400 font-bold underline active:text-slate-600 py-4">
+            重新挑戰一次
+        </button>
+    </div>
+
+    <script>
+        let db = null;
+        let auth, userId, appId, todayStr;
+        let fbDoc, fbGetDoc, fbSetDoc;
+        let todayData = { date: '', attempts: [], totalScore: 0 };
+        const MAX_DAILY_ATTEMPTS = 3;
+
+        function getTodayStr() {
+            const d = new Date();
+            // 格式化為 YYYY-MM-DD
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        async function initSystem() {
+            todayStr = getTodayStr();
+            
+            try {
+                // 檢查是否提供了 Firebase 設定
+                if (typeof __firebase_config === 'undefined' || !__firebase_config) {
+                    console.warn("未偵測到 Firebase 設定，已自動切換為單機模式。");
+                    setupLocalMode();
+                    return;
+                }
+
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'stroop-game-app';
+                const firebaseConfig = JSON.parse(__firebase_config);
+                
+                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+                const { getAuth, signInAnonymously, signInWithCustomToken } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                const { getFirestore, doc, getDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                
+                // 將動態載入的方法存入全域變數，供其他函式使用
+                fbDoc = doc;
+                fbGetDoc = getDoc;
+                fbSetDoc = setDoc;
+
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                const customToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (customToken) {
+                    await signInWithCustomToken(auth, customToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                userId = auth.currentUser.uid;
+                
+                await loadCloudData();
+                
+            } catch (error) {
+                console.error("系統初始化或連線失敗，強制切換為單機模式:", error);
+                setupLocalMode();
+            }
+        }
+
+        function setupLocalMode() {
+            userId = "local-user";
+            db = null;
+            loadLocalData();
+        }
+
+        async function loadCloudData() {
+            try {
+                const docRef = fbDoc(db, 'artifacts', appId, 'users', userId, 'daily_stats', todayStr);
+                const docSnap = await fbGetDoc(docRef);
+                if (docSnap.exists()) {
+                    todayData = docSnap.data();
+                } else {
+                    todayData = { date: todayStr, attempts: [], totalScore: 0 };
+                }
+            } catch (e) {
+                console.error("讀取雲端戰績失敗，切換至單機資料:", e);
+                setupLocalMode();
+                return; // setupLocalMode 會呼叫 updateUIState
+            }
+            updateUIState();
+        }
+
+        function loadLocalData() {
+            try {
+                const localData = localStorage.getItem(`stroop_data_${todayStr}`);
+                if (localData) {
+                    todayData = JSON.parse(localData);
+                } else {
+                    todayData = { date: todayStr, attempts: [], totalScore: 0 };
+                }
+            } catch(e) {
+                console.error("讀取單機戰績失敗:", e);
+                todayData = { date: todayStr, attempts: [], totalScore: 0 };
+            }
+            updateUIState();
+        }
+
+        function updateUIState() {
+            const startBtn = document.getElementById('start-btn-text');
+            const startBtnContainer = document.getElementById('start-btn-container');
+            const limitDisplay = document.getElementById('limit-display');
+
+            const attemptsCount = todayData.attempts ? todayData.attempts.length : 0;
+            const modeText = (!db) ? "(單機模式)" : "";
+
+            if (attemptsCount >= MAX_DAILY_ATTEMPTS) {
+                startBtn.textContent = "今日挑戰已達上限";
+                startBtnContainer.disabled = true;
+                startBtnContainer.classList.add('opacity-50', 'cursor-not-allowed');
+                startBtnContainer.classList.remove('active:scale-95', 'active:bg-indigo-700');
+                limitDisplay.textContent = `今日剩餘次數: 0 / ${MAX_DAILY_ATTEMPTS} (鎖定中) ${modeText}`;
+                limitDisplay.classList.replace('text-slate-500', 'text-red-500');
+            } else {
+                startBtn.textContent = "啟動挑戰"; // 改為更直覺的文字
+                startBtnContainer.disabled = false;
+                startBtnContainer.classList.remove('opacity-50', 'cursor-not-allowed');
+                startBtnContainer.classList.add('active:scale-95', 'active:bg-indigo-700');
+                limitDisplay.textContent = `今日剩餘次數: ${MAX_DAILY_ATTEMPTS - attemptsCount} / ${MAX_DAILY_ATTEMPTS} ${modeText}`;
+                limitDisplay.classList.replace('text-red-500', 'text-slate-500');
+            }
+        }
+
+        async function saveGameRecord() {
+            const attemptsCount = todayData.attempts ? todayData.attempts.length : 0;
+            if (attemptsCount >= MAX_DAILY_ATTEMPTS) return;
+
+            const newAttempt = {
+                score: grandTotalScore,
+                correct: grandTotalCorrect,
+                wrong: grandTotalWrong,
+                maxCombo: globalMaxCombo,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (!todayData.attempts) todayData.attempts = [];
+            todayData.attempts.push(newAttempt);
+            todayData.totalScore = (todayData.totalScore || 0) + grandTotalScore;
+
+            if (!db || !userId) {
+                try {
+                    localStorage.setItem(`stroop_data_${todayStr}`, JSON.stringify(todayData));
+                } catch(e) {
+                    console.error("寫入單機戰績失敗", e);
+                }
+                return;
+            }
+
+            try {
+                const docRef = fbDoc(db, 'artifacts', appId, 'users', userId, 'daily_stats', todayStr);
+                await fbSetDoc(docRef, todayData);
+            } catch (e) {
+                console.error("寫入雲端戰績失敗:", e);
+                // 雲端寫入失敗，備份到單機
+                try {
+                    localStorage.setItem(`stroop_data_${todayStr}`, JSON.stringify(todayData));
+                } catch(err) {}
+            }
+        }
+
+        // --- 街機風音效系統 (Web Audio API) ---
+        let audioCtx;
+
+        window.initAudioAndStart = function(level) {
+            if (todayData.attempts && todayData.attempts.length >= MAX_DAILY_ATTEMPTS) return;
+
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            grandTotalScore = 0;
+            grandTotalCorrect = 0;
+            grandTotalWrong = 0;
+            globalMaxCombo = 0;
+            
+            window.startGame(level);
+        }
+
+        window.playSound = function(type, currentCombo = 1) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                osc.type = 'square'; 
+                const baseFreq = 600;
+                const freqStep = 50;
+                const maxFreq = 1500; 
+                const targetFreq = Math.min(baseFreq + (currentCombo - 1) * freqStep, maxFreq);
+
+                osc.frequency.setValueAtTime(targetFreq * 0.8, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.05);
+                
+                gainNode.gain.setValueAtTime(0.0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.01); 
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1); 
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.02);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        // --- 遊戲資料與邏輯 ---
+        const colorsData = [
+            { id: 'red', text: '紅', hex: '#ef4444' },
+            { id: 'blue', text: '藍', hex: '#3b82f6' },
+            { id: 'yellow', text: '黃', hex: '#eab308' },
+            { id: 'green', text: '綠', hex: '#22c55e' }
+        ];
+
+        const levelConfig = {
+            1: { mode: 'single', time: 30.0, title: '第 1 關：暖身單字' },
+            2: { mode: 'single', time: 30.0, title: '第 2 關：極速單字' },
+            3: { mode: 'double', time: 30.0, title: '第 3 關：雙字連擊' }, 
+            4: { mode: 'double', time: 30.0, title: '第 4 關：雙字進階' },
+            5: { mode: 'double', time: 20.0, title: '第 5 關：魔王關' }
+        };
+
+        const restMessages = [
+            { icon: '♨️', title: '大腦 CPU 過熱警告！', desc: '強制進入散熱模式！今日算力已達極限，請離開螢幕去喝口水降溫，明天再戰！' },
+            { icon: '🔋', title: '今日體力值已耗盡！', desc: '五連戰太猛啦！最強玩家也需要下線掛機，讓大腦神經元長肌肉，休息一下吧！' },
+            { icon: '🚗💨', title: '煞車皮已磨光啦！', desc: '高強度的煞車讓前額葉冒煙啦！請馬上進廠保養，吃點東西補充能量，明天再來！' },
+            { icon: '🏳️', title: '伺服器已被榨乾！', desc: '太神啦！大腦負荷過重請求暫停。快把視線離開螢幕，給自己放個假吧！' }
+        ];
+
+        let grandTotalScore = 0;
+        let grandTotalCorrect = 0;
+        let grandTotalWrong = 0;
+        let globalMaxCombo = 0;
+
+        let currentLevel = 1;
+        let score = 0;
+        let combo = 0;
+        let maxCombo = 0;
+        let correctCount = 0;
+        let wrongCount = 0;
+        let totalAttempts = 0;
+        let timeLeft = 30.0;
+        let gameInterval;
+        let isGameRunning = false;
+        let expectedColorsQueue = []; 
+
+        const container = document.getElementById('game-container');
+        const startScreen = document.getElementById('start-screen');
+        const playScreen = document.getElementById('play-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const timerDisplay = document.getElementById('timer-display');
+        const scoreDisplay = document.getElementById('score-display');
+        const comboDisplay = document.getElementById('combo-display');
+        const wordContainer = document.getElementById('word-container');
+        const feedbackIcon = document.getElementById('feedback-icon');
+        const levelTitleDisplay = document.getElementById('level-title');
+
+        window.startGame = function(level) {
+            currentLevel = level;
+            const config = levelConfig[currentLevel];
+            
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            playScreen.classList.remove('hidden');
+            
+            score = 0;
+            combo = 0;
+            maxCombo = 0;
+            correctCount = 0;
+            wrongCount = 0;
+            totalAttempts = 0;
+            timeLeft = config.time;
+            isGameRunning = true;
+            
+            levelTitleDisplay.textContent = config.title;
+            window.updateScoreDisplay();
+            window.updateTimerDisplay();
+
+            if (currentLevel === 5) {
+                playScreen.classList.add('boss-mode');
+            } else {
+                playScreen.classList.remove('boss-mode');
+            }
+
+            window.nextQuestion();
+            clearInterval(gameInterval);
+            gameInterval = setInterval(window.updateTimer, 100);
+        }
+
+        window.nextQuestion = function() {
+            if (!isGameRunning) return;
+            
+            const config = levelConfig[currentLevel];
+            wordContainer.innerHTML = ''; 
+            expectedColorsQueue = []; 
+
+            wordContainer.classList.remove('animate-pop-in');
+            void wordContainer.offsetWidth; 
+            wordContainer.classList.add('animate-pop-in');
+
+            const wordCount = config.mode === 'double' ? 2 : 1;
+
+            for (let i = 0; i < wordCount; i++) {
+                const textObj = colorsData[Math.floor(Math.random() * colorsData.length)];
+                const colorObj = colorsData[Math.floor(Math.random() * colorsData.length)];
+                
+                expectedColorsQueue.push(colorObj.id);
+
+                const wordElement = document.createElement('div');
+                const textSize = config.mode === 'double' ? 'text-[7rem] md:text-[9rem]' : 'text-[11rem] md:text-[14rem]';
+                
+                wordElement.className = `${textSize} font-black tracking-tighter leading-none transition-opacity duration-200`;
+                wordElement.style.color = colorObj.hex;
+                wordElement.style.textShadow = '2px 2px 0px rgba(0,0,0,0.1)';
+                wordElement.textContent = textObj.text;
+                wordElement.id = `word-item-${i}`;
+                
+                wordContainer.appendChild(wordElement);
+            }
+        }
+
+        window.checkAnswer = function(selectedColorId) {
+            if (!isGameRunning || expectedColorsQueue.length === 0) return;
+
+            totalAttempts++;
+            const correctColorId = expectedColorsQueue[0];
+
+            if (selectedColorId === correctColorId) {
+                expectedColorsQueue.shift(); 
+                correctCount++;
+
+                if (expectedColorsQueue.length > 0) {
+                    score += 5; 
+                    combo++;
+                    if(combo > maxCombo) maxCombo = combo;
+                    
+                    window.playSound('correct', combo); 
+                    window.showFeedback(true, "連擊!");
+                    
+                    const topWord = document.getElementById('word-item-0');
+                    if(topWord) {
+                        topWord.style.opacity = '0.2';
+                        topWord.style.transform = 'scale(0.9)';
+                    }
+                } else {
+                    score += 10;
+                    combo++;
+                    if(combo > maxCombo) maxCombo = combo;
+                    
+                    window.playSound('correct', combo); 
+                    window.showFeedback(true, window.getComboText());
+                    window.nextQuestion(); 
+                }
+            } else {
+                window.playSound('wrong'); 
+                combo = 0; 
+                wrongCount++;
+                window.showFeedback(false, "失誤!");
+                window.nextQuestion();
+            }
+            
+            window.updateScoreDisplay();
+        }
+
+        window.updateTimer = function() {
+            timeLeft -= 0.1;
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                window.endLevel();
+            }
+            window.updateTimerDisplay();
+        }
+
+        window.getEncouragementText = function(accuracy, maxCombo) {
+            if (accuracy === 100 && totalAttempts > 5) return "🏆 神乎其技的精準度！零失誤！";
+            if (maxCombo >= 20) return "🚀 煞車之神降臨！這連擊太狂了！";
+            if (maxCombo >= 10) return "🔥 反應超快！前額葉高速運轉中！";
+            if (accuracy >= 80) return "🎯 穩紮穩打！準確率很高喔！";
+            if (accuracy < 50) return "💪 沒關係，深呼吸，下一關找回節奏！";
+            return "💡 煞車皮越來越厚囉！繼續保持！";
+        }
+
+        window.endLevel = async function() {
+            isGameRunning = false;
+            clearInterval(gameInterval);
+            
+            grandTotalScore += score;
+            grandTotalCorrect += correctCount;
+            grandTotalWrong += wrongCount;
+            if(maxCombo > globalMaxCombo) globalMaxCombo = maxCombo;
+            
+            let accuracy = totalAttempts > 0 ? Math.round((correctCount / totalAttempts) * 100) : 0;
+            
+            playScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+
+            const nextBtn = document.getElementById('next-level-btn');
+            const restBox = document.getElementById('rest-message-box');
+            const restartBtn = document.getElementById('restart-all-btn');
+
+            if (currentLevel < 5) {
+                document.getElementById('result-title').textContent = `第 ${currentLevel} 關 完成！`;
+                document.getElementById('score-label').textContent = "本局得分";
+                document.getElementById('final-score').textContent = score;
+                
+                document.getElementById('accuracy-label').textContent = "本局準確率";
+                document.getElementById('accuracy-display').textContent = accuracy + "%";
+                document.getElementById('combo-label').textContent = "本局最大連擊";
+                document.getElementById('max-combo-display').textContent = maxCombo;
+                document.getElementById('stats-correct').textContent = correctCount;
+                document.getElementById('stats-wrong').textContent = wrongCount;
+
+                document.getElementById('encouragement-text').innerHTML = `<span>${window.getEncouragementText(accuracy, maxCombo)}</span>`;
+
+                nextBtn.classList.remove('hidden');
+                restBox.classList.add('hidden');
+                restartBtn.classList.add('hidden');
+                nextBtn.textContent = `進入第 ${currentLevel + 1} 關`;
+            } else {
+                let grandAccuracy = (grandTotalCorrect + grandTotalWrong) > 0 ? 
+                    Math.round((grandTotalCorrect / (grandTotalCorrect + grandTotalWrong)) * 100) : 0;
+
+                setTimeout(() => window.playSound('correct', 5), 100);
+                setTimeout(() => window.playSound('correct', 10), 300);
+                setTimeout(() => window.playSound('correct', 15), 500);
+
+                // 同步雲端資料期間的 UI 狀態
+                document.getElementById('result-title').textContent = db ? "☁️ 戰績同步中..." : "💾 成績計算中...";
+                document.getElementById('result-title').classList.replace('text-slate-800', 'text-slate-500');
+                nextBtn.classList.add('hidden');
+                restBox.classList.add('hidden');
+                restartBtn.classList.add('hidden'); 
+                
+                await saveGameRecord();
+
+                // 更新 UI 顯示為總成績
+                document.getElementById('result-title').textContent = "🌟 最終成績單 🌟";
+                document.getElementById('result-title').classList.replace('text-slate-500', 'text-yellow-500');
+                
+                document.getElementById('score-label').textContent = "五關累計總分";
+                document.getElementById('final-score').textContent = grandTotalScore;
+                
+                document.getElementById('accuracy-label').textContent = "平均總準確率";
+                document.getElementById('accuracy-display').textContent = grandAccuracy + "%";
+                document.getElementById('combo-label').textContent = "全場最高連擊";
+                document.getElementById('max-combo-display').textContent = globalMaxCombo;
+                document.getElementById('stats-correct').textContent = grandTotalCorrect;
+                document.getElementById('stats-wrong').textContent = grandTotalWrong;
+
+                let finalRank = "";
+                if (grandTotalScore > 1000) finalRank = "S 級前額葉控制者！大腦超進化！";
+                else if (grandTotalScore > 600) finalRank = "A 級反應大師！煞車皮有夠厚！";
+                else finalRank = "B 級潛力股！今天神經元連結做得很棒！";
+                
+                document.getElementById('encouragement-text').innerHTML = `<span class="text-xl text-yellow-600 animate-pulse">👑 ${finalRank}</span>`;
+
+                restBox.classList.remove('hidden');
+                
+                // 更新每日戰績歷史區塊
+                const historyBox = document.getElementById('daily-history-box');
+                const historyList = document.getElementById('history-list');
+                historyList.innerHTML = '';
+                
+                if (todayData.attempts && todayData.attempts.length > 0) {
+                    todayData.attempts.forEach((attempt, index) => {
+                        const isCurrent = index === todayData.attempts.length - 1;
+                        historyList.innerHTML += `<li class="flex justify-between border-b border-slate-100 py-1 ${isCurrent ? 'bg-indigo-50 px-2 rounded -mx-2' : ''}">
+                            <span>第 ${index + 1} 次挑戰 ${isCurrent ? '<span class="text-xs text-indigo-500 ml-1">(本次)</span>' : ''}</span>
+                            <span class="text-indigo-600">${attempt.score} 分</span>
+                        </li>`;
+                    });
+                    document.getElementById('history-count').textContent = todayData.attempts.length;
+                    document.getElementById('history-total-score').textContent = todayData.totalScore;
+                    historyBox.classList.remove('hidden');
+                    historyBox.classList.add('flex');
+                }
+
+                updateUIState(); // 更新每日剩餘次數狀態
+
+                if (todayData.attempts && todayData.attempts.length >= MAX_DAILY_ATTEMPTS) {
+                    restartBtn.textContent = "今日次數已滿，明天再來！";
+                    restartBtn.classList.remove('underline', 'text-slate-400', 'active:text-slate-600');
+                    restartBtn.classList.add('text-slate-300', 'cursor-not-allowed', 'no-underline');
+                    restartBtn.onclick = null; // 關閉點擊功能
+                }
+                restartBtn.classList.remove('hidden'); 
+
+                const msg = restMessages[Math.floor(Math.random() * restMessages.length)];
+                document.getElementById('rest-icon').textContent = msg.icon;
+                document.getElementById('rest-title').textContent = msg.title;
+                document.getElementById('rest-desc').textContent = msg.desc;
+            }
+        }
+
+        window.goToNextLevel = function() {
+            if (currentLevel < 5) {
+                window.startGame(currentLevel + 1);
+            }
+        }
+
+        window.resetToStart = function() {
+            if (todayData.attempts && todayData.attempts.length >= MAX_DAILY_ATTEMPTS) return; // 二次防護
+            resultScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            document.getElementById('result-title').classList.remove('text-yellow-500');
+            document.getElementById('result-title').classList.add('text-slate-800');
+            currentLevel = 1;
+        }
+
+        window.updateScoreDisplay = function() {
+            scoreDisplay.textContent = score;
+            comboDisplay.textContent = combo;
+            
+            if (combo > 0) {
+                comboDisplay.classList.add('scale-150');
+                setTimeout(() => comboDisplay.classList.remove('scale-150'), 150);
+            }
+        }
+
+        window.updateTimerDisplay = function() {
+            timerDisplay.textContent = timeLeft.toFixed(1) + 's';
+            if (timeLeft <= 5.0) {
+                timerDisplay.classList.replace('text-slate-700', 'text-red-500');
+                timerDisplay.classList.add('animate-pulse');
+            } else {
+                timerDisplay.classList.replace('text-red-500', 'text-slate-700');
+                timerDisplay.classList.remove('animate-pulse');
+            }
+        }
+
+        window.getComboText = function() {
+            if (combo >= 15) return "神反應!!";
+            if (combo >= 10) return "太扯了!";
+            if (combo >= 5) return "煞車超穩!";
+            return "⭕";
+        }
+
+        window.showFeedback = function(isCorrect, textStr) {
+            container.classList.remove('correct-feedback', 'wrong-feedback');
+            void container.offsetWidth; 
+            
+            feedbackIcon.textContent = textStr;
+            
+            if (isCorrect) {
+                container.classList.add('correct-feedback');
+                feedbackIcon.className = 'absolute top-[10%] text-5xl md:text-6xl font-black text-green-500 transition-opacity duration-150 opacity-100 z-10 text-center w-full drop-shadow-md';
+            } else {
+                container.classList.add('wrong-feedback');
+                feedbackIcon.className = 'absolute top-[10%] text-5xl md:text-6xl font-black text-red-500 transition-opacity duration-150 opacity-100 z-10 text-center w-full drop-shadow-md';
+            }
+
+            setTimeout(() => {
+                feedbackIcon.style.opacity = '0';
+            }, 400);
+        }
+
+        // 系統啟動與資料庫連線
+        initSystem();
+    </script>
+</body>
+</html>
