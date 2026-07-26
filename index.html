@@ -46,7 +46,7 @@
         <div class="text-center space-y-4">
             <h1 class="text-5xl md:text-6xl font-black text-slate-800 tracking-tight">史楚普挑戰</h1>
             <div class="inline-block bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full text-xl font-bold">
-                極限生存模式 (共 50 秒)
+                極限生存模式 (共 60 秒)
             </div>
         </div>
         
@@ -72,7 +72,7 @@
         <div class="flex justify-between items-center p-4 md:p-6 bg-white/80 backdrop-blur-sm shadow-sm h-24 shrink-0 z-10">
             <div class="flex flex-col">
                 <span class="text-sm font-bold text-slate-400 uppercase tracking-wider" id="level-title">階段 1：極速單字</span>
-                <span id="timer-display" class="text-4xl font-black text-slate-700 font-mono">50.0s</span>
+                <span id="timer-display" class="text-4xl font-black text-slate-700 font-mono">60.0s</span>
             </div>
             
             <div class="flex flex-col items-center">
@@ -89,7 +89,7 @@
         <div class="flex-1 flex items-center justify-center relative overflow-hidden">
             <div id="feedback-icon" class="absolute top-[10%] opacity-0 text-5xl md:text-6xl font-black transition-opacity duration-200 z-10 text-center w-full"></div>
             
-            <div id="word-container" class="flex flex-col items-center justify-center space-y-4 md:space-y-8 animate-pop-in">
+            <div id="word-container" class="flex flex-row flex-wrap items-center justify-center gap-4 md:gap-8 animate-pop-in w-full px-4">
                 <!-- 文字會從 JS 注入 -->
             </div>
         </div>
@@ -398,10 +398,11 @@
         let correctCount = 0;
         let wrongCount = 0;
         let totalAttempts = 0;
-        let timeLeft = 50.0;
+        let timeLeft = 60.0;
         let gameInterval;
         let isGameRunning = false;
         let expectedColorsQueue = []; 
+        let currentWordIndex = 0;
 
         const container = document.getElementById('game-container');
         const startScreen = document.getElementById('start-screen');
@@ -426,8 +427,9 @@
             correctCount = 0;
             wrongCount = 0;
             totalAttempts = 0;
-            timeLeft = 50.0;
+            timeLeft = 60.0;
             isGameRunning = true;
+            currentWordIndex = 0;
             
             levelTitleDisplay.textContent = "階段 1：極速單字";
             levelTitleDisplay.classList.remove('text-red-500');
@@ -444,6 +446,7 @@
             
             wordContainer.innerHTML = ''; 
             expectedColorsQueue = []; 
+            currentWordIndex = 0;
 
             wordContainer.classList.remove('animate-pop-in');
             void wordContainer.offsetWidth; 
@@ -451,8 +454,8 @@
 
             // 依剩餘時間決定文字數量
             let wordCount = 1;
-            if (timeLeft <= 30 && timeLeft > 10) wordCount = 2; // 剩餘 30~10秒 (即遊戲進行的 20~40秒)
-            if (timeLeft <= 10) wordCount = 3;                  // 剩餘 10~0秒 (即遊戲進行的 40~50秒)
+            if (timeLeft <= 40 && timeLeft > 20) wordCount = 2; // 剩餘 40~20秒 (即遊戲進行的 20~40秒)
+            if (timeLeft <= 20) wordCount = 3;                  // 剩餘 20~0秒 (即遊戲進行的 40~60秒)
 
             for (let i = 0; i < wordCount; i++) {
                 const textObj = colorsData[Math.floor(Math.random() * colorsData.length)];
@@ -461,11 +464,11 @@
                 expectedColorsQueue.push(colorObj.id);
 
                 const wordElement = document.createElement('div');
-                let textSize = 'text-[11rem] md:text-[14rem]';
-                if (wordCount === 2) textSize = 'text-[7rem] md:text-[9rem]';
-                if (wordCount === 3) textSize = 'text-[5rem] md:text-[6.5rem]';
+                let textSize = 'text-[9rem] md:text-[14rem]';
+                if (wordCount === 2) textSize = 'text-[5rem] md:text-[8rem]';
+                if (wordCount === 3) textSize = 'text-[4rem] md:text-[5.5rem]';
                 
-                wordElement.className = `${textSize} font-black tracking-tighter leading-none transition-opacity duration-200`;
+                wordElement.className = `${textSize} font-black tracking-tighter leading-none transition-all duration-200`;
                 wordElement.style.color = colorObj.hex;
                 wordElement.style.textShadow = '2px 2px 0px rgba(0,0,0,0.1)';
                 wordElement.textContent = textObj.text;
@@ -493,11 +496,12 @@
                     window.playSound('correct', combo); 
                     window.showFeedback(true, "連擊!");
                     
-                    const topWord = document.getElementById('word-item-0');
-                    if(topWord) {
-                        topWord.style.opacity = '0.2';
-                        topWord.style.transform = 'scale(0.9)';
+                    const answeredWord = document.getElementById(`word-item-${currentWordIndex}`);
+                    if(answeredWord) {
+                        answeredWord.style.opacity = '0.2';
+                        answeredWord.style.transform = 'scale(0.8)';
                     }
+                    currentWordIndex++;
                 } else {
                     score += 10;
                     combo++;
@@ -522,11 +526,11 @@
             timeLeft -= 0.1;
             
             // 進入各階段變更提示與背景
-            if (timeLeft <= 10.0 && timeLeft > 0) {
+            if (timeLeft <= 20.0 && timeLeft > 0) {
                 if (!playScreen.classList.contains('boss-mode')) playScreen.classList.add('boss-mode');
                 levelTitleDisplay.textContent = "魔王降臨：參字連擊！";
                 levelTitleDisplay.classList.add('text-red-500');
-            } else if (timeLeft <= 30.0 && timeLeft > 10.0) {
+            } else if (timeLeft <= 40.0 && timeLeft > 20.0) {
                 levelTitleDisplay.textContent = "階段 2：雙字進階";
                 levelTitleDisplay.classList.remove('text-red-500');
             } else {
