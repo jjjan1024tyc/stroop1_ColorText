@@ -46,7 +46,33 @@
         <div class="text-center space-y-4">
             <h1 class="text-5xl md:text-6xl font-black text-slate-800 tracking-tight">史楚普挑戰</h1>
             <div class="inline-block bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full text-xl font-bold">
-                闖關模式 (共 5 關)
+                極限生存模式 (共 50 秒)
+            </div>
+        </div>
+        
+        <div class="bg-blue-50 border-l-8 border-blue-500 p-6 rounded-r-2xl max-w-lg w-full shadow-sm">
+            <h3 class="text-2xl font-bold mb-4 text-blue-800">遊戲規則：</h3>
+            <p class="text-xl leading-relaxed text-slate-700">
+                請用最快的速度，點擊<strong class="text-red-500 font-black text-2xl mx-1">文字的顏色</strong>！<br>
+                注意：難度將隨時間攀升（單字 ➔ 雙字 ➔ 參字魔王）<br>
+                <span class="text-sm text-slate-500 mt-2 block">🔔 建議開啟聲音，體驗街機打擊感！</span>
+            </p>
+        </div>
+
+        <div class="text-center w-full max-w-md mt-4">
+            <button id="start-btn-container" onclick="initAudioAndStart()" class="bg-indigo-600 text-white text-3xl font-bold py-6 px-16 rounded-full shadow-lg transform transition w-full opacity-50 cursor-not-allowed" disabled>
+                <span id="start-btn-text">系統連線中...</span>
+            </button>
+            <div id="limit-display" class="text-sm font-bold text-slate-500 mt-3 h-5">連線同步中...</div>
+        </div>
+    </div>
+
+    <!-- 遊戲主要畫面 -->
+    <div id="play-screen" class="flex-1 flex flex-col hidden h-full w-full">
+        <div class="flex justify-between items-center p-4 md:p-6 bg-white/80 backdrop-blur-sm shadow-sm h-24 shrink-0 z-10">
+            <div class="flex flex-col">
+                <span class="text-sm font-bold text-slate-400 uppercase tracking-wider" id="level-title">階段 1：極速單字</span>
+                <span id="timer-display" class="text-4xl font-black text-slate-700 font-mono">50.0s</span>
             </div>
         </div>
         
@@ -162,11 +188,7 @@
             </div>
         </div>
 
-        <button id="next-level-btn" onclick="goToNextLevel()" class="mt-2 bg-indigo-600 active:bg-indigo-700 text-white text-2xl font-bold py-5 px-12 rounded-full shadow-lg transform transition active:scale-95 w-full max-w-md">
-            進入第 2 關
-        </button>
-
-        <button id="restart-all-btn" onclick="resetToStart()" class="hidden mt-2 text-slate-400 font-bold underline active:text-slate-600 py-4">
+        <button id="restart-all-btn" onclick="resetToStart()" class="hidden mt-2 bg-indigo-600 active:bg-indigo-700 text-white text-2xl font-bold py-5 px-12 rounded-full shadow-lg transform transition active:scale-95 w-full max-w-md">
             重新挑戰一次
         </button>
     </div>
@@ -295,16 +317,16 @@
             if (attemptsCount >= MAX_DAILY_ATTEMPTS) return;
 
             const newAttempt = {
-                score: grandTotalScore,
-                correct: grandTotalCorrect,
-                wrong: grandTotalWrong,
-                maxCombo: globalMaxCombo,
+                score: score,
+                correct: correctCount,
+                wrong: wrongCount,
+                maxCombo: maxCombo,
                 timestamp: new Date().toISOString()
             };
             
             if (!todayData.attempts) todayData.attempts = [];
             todayData.attempts.push(newAttempt);
-            todayData.totalScore = (todayData.totalScore || 0) + grandTotalScore;
+            todayData.totalScore = (todayData.totalScore || 0) + score;
 
             if (!db || !userId) {
                 try {
@@ -330,7 +352,7 @@
         // --- 街機風音效系統 (Web Audio API) ---
         let audioCtx;
 
-        window.initAudioAndStart = function(level) {
+        window.initAudioAndStart = function() {
             if (todayData.attempts && todayData.attempts.length >= MAX_DAILY_ATTEMPTS) return;
 
             if (!audioCtx) {
@@ -340,12 +362,7 @@
                 audioCtx.resume();
             }
             
-            grandTotalScore = 0;
-            grandTotalCorrect = 0;
-            grandTotalWrong = 0;
-            globalMaxCombo = 0;
-            
-            window.startGame(level);
+            window.startGame();
         }
 
         window.playSound = function(type, currentCombo = 1) {
@@ -394,34 +411,20 @@
             { id: 'green', text: '綠', hex: '#22c55e' }
         ];
 
-        const levelConfig = {
-            1: { mode: 'single', time: 30.0, title: '第 1 關：暖身單字' },
-            2: { mode: 'single', time: 30.0, title: '第 2 關：極速單字' },
-            3: { mode: 'double', time: 30.0, title: '第 3 關：雙字連擊' }, 
-            4: { mode: 'double', time: 30.0, title: '第 4 關：雙字進階' },
-            5: { mode: 'double', time: 20.0, title: '第 5 關：魔王關' }
-        };
-
         const restMessages = [
             { icon: '♨️', title: '大腦 CPU 過熱警告！', desc: '強制進入散熱模式！今日算力已達極限，請離開螢幕去喝口水降溫，明天再戰！' },
-            { icon: '🔋', title: '今日體力值已耗盡！', desc: '五連戰太猛啦！最強玩家也需要下線掛機，讓大腦神經元長肌肉，休息一下吧！' },
+            { icon: '🔋', title: '今日體力值已耗盡！', desc: '這反應太猛啦！最強玩家也需要下線掛機，讓大腦神經元長肌肉，休息一下吧！' },
             { icon: '🚗💨', title: '煞車皮已磨光啦！', desc: '高強度的煞車讓前額葉冒煙啦！請馬上進廠保養，吃點東西補充能量，明天再來！' },
             { icon: '🏳️', title: '伺服器已被榨乾！', desc: '太神啦！大腦負荷過重請求暫停。快把視線離開螢幕，給自己放個假吧！' }
         ];
 
-        let grandTotalScore = 0;
-        let grandTotalCorrect = 0;
-        let grandTotalWrong = 0;
-        let globalMaxCombo = 0;
-
-        let currentLevel = 1;
         let score = 0;
         let combo = 0;
         let maxCombo = 0;
         let correctCount = 0;
         let wrongCount = 0;
         let totalAttempts = 0;
-        let timeLeft = 30.0;
+        let timeLeft = 50.0;
         let gameInterval;
         let isGameRunning = false;
         let expectedColorsQueue = []; 
@@ -437,13 +440,11 @@
         const feedbackIcon = document.getElementById('feedback-icon');
         const levelTitleDisplay = document.getElementById('level-title');
 
-        window.startGame = function(level) {
-            currentLevel = level;
-            const config = levelConfig[currentLevel];
-            
+        window.startGame = function() {
             startScreen.classList.add('hidden');
             resultScreen.classList.add('hidden');
             playScreen.classList.remove('hidden');
+            playScreen.classList.remove('boss-mode');
             
             score = 0;
             combo = 0;
@@ -451,18 +452,13 @@
             correctCount = 0;
             wrongCount = 0;
             totalAttempts = 0;
-            timeLeft = config.time;
+            timeLeft = 50.0;
             isGameRunning = true;
             
-            levelTitleDisplay.textContent = config.title;
+            levelTitleDisplay.textContent = "階段 1：極速單字";
+            levelTitleDisplay.classList.remove('text-red-500');
             window.updateScoreDisplay();
             window.updateTimerDisplay();
-
-            if (currentLevel === 5) {
-                playScreen.classList.add('boss-mode');
-            } else {
-                playScreen.classList.remove('boss-mode');
-            }
 
             window.nextQuestion();
             clearInterval(gameInterval);
@@ -472,7 +468,6 @@
         window.nextQuestion = function() {
             if (!isGameRunning) return;
             
-            const config = levelConfig[currentLevel];
             wordContainer.innerHTML = ''; 
             expectedColorsQueue = []; 
 
@@ -480,7 +475,10 @@
             void wordContainer.offsetWidth; 
             wordContainer.classList.add('animate-pop-in');
 
-            const wordCount = config.mode === 'double' ? 2 : 1;
+            // 依剩餘時間決定文字數量
+            let wordCount = 1;
+            if (timeLeft <= 30 && timeLeft > 10) wordCount = 2; // 剩餘 30~10秒 (即遊戲進行的 20~40秒)
+            if (timeLeft <= 10) wordCount = 3;                  // 剩餘 10~0秒 (即遊戲進行的 40~50秒)
 
             for (let i = 0; i < wordCount; i++) {
                 const textObj = colorsData[Math.floor(Math.random() * colorsData.length)];
@@ -489,7 +487,9 @@
                 expectedColorsQueue.push(colorObj.id);
 
                 const wordElement = document.createElement('div');
-                const textSize = config.mode === 'double' ? 'text-[7rem] md:text-[9rem]' : 'text-[11rem] md:text-[14rem]';
+                let textSize = 'text-[11rem] md:text-[14rem]';
+                if (wordCount === 2) textSize = 'text-[7rem] md:text-[9rem]';
+                if (wordCount === 3) textSize = 'text-[5rem] md:text-[6.5rem]';
                 
                 wordElement.className = `${textSize} font-black tracking-tighter leading-none transition-opacity duration-200`;
                 wordElement.style.color = colorObj.hex;
@@ -546,6 +546,20 @@
 
         window.updateTimer = function() {
             timeLeft -= 0.1;
+            
+            // 進入各階段變更提示與背景
+            if (timeLeft <= 10.0 && timeLeft > 0) {
+                if (!playScreen.classList.contains('boss-mode')) playScreen.classList.add('boss-mode');
+                levelTitleDisplay.textContent = "魔王降臨：參字連擊！";
+                levelTitleDisplay.classList.add('text-red-500');
+            } else if (timeLeft <= 30.0 && timeLeft > 10.0) {
+                levelTitleDisplay.textContent = "階段 2：雙字進階";
+                levelTitleDisplay.classList.remove('text-red-500');
+            } else {
+                levelTitleDisplay.textContent = "階段 1：極速單字";
+                levelTitleDisplay.classList.remove('text-red-500');
+            }
+
             if (timeLeft <= 0) {
                 timeLeft = 0;
                 window.endLevel();
@@ -558,7 +572,7 @@
             if (maxCombo >= 20) return "🚀 煞車之神降臨！這連擊太狂了！";
             if (maxCombo >= 10) return "🔥 反應超快！前額葉高速運轉中！";
             if (accuracy >= 80) return "🎯 穩紮穩打！準確率很高喔！";
-            if (accuracy < 50) return "💪 沒關係，深呼吸，下一關找回節奏！";
+            if (accuracy < 50) return "💪 沒關係，深呼吸，再來一次！";
             return "💡 煞車皮越來越厚囉！繼續保持！";
         }
 
@@ -566,127 +580,91 @@
             isGameRunning = false;
             clearInterval(gameInterval);
             
-            grandTotalScore += score;
-            grandTotalCorrect += correctCount;
-            grandTotalWrong += wrongCount;
-            if(maxCombo > globalMaxCombo) globalMaxCombo = maxCombo;
-            
             let accuracy = totalAttempts > 0 ? Math.round((correctCount / totalAttempts) * 100) : 0;
             
             playScreen.classList.add('hidden');
             resultScreen.classList.remove('hidden');
 
-            const nextBtn = document.getElementById('next-level-btn');
-            const restBox = document.getElementById('rest-message-box');
+            setTimeout(() => window.playSound('correct', 5), 100);
+            setTimeout(() => window.playSound('correct', 10), 300);
+            setTimeout(() => window.playSound('correct', 15), 500);
+
+            document.getElementById('result-title').textContent = db ? "☁️ 戰績同步中..." : "💾 成績計算中...";
+            document.getElementById('result-title').classList.replace('text-slate-800', 'text-slate-500');
+            
             const restartBtn = document.getElementById('restart-all-btn');
+            const restBox = document.getElementById('rest-message-box');
+            restartBtn.classList.add('hidden'); 
+            restBox.classList.add('hidden');
+            
+            await saveGameRecord();
 
-            if (currentLevel < 5) {
-                document.getElementById('result-title').textContent = `第 ${currentLevel} 關 完成！`;
-                document.getElementById('score-label').textContent = "本局得分";
-                document.getElementById('final-score').textContent = score;
-                
-                document.getElementById('accuracy-label').textContent = "本局準確率";
-                document.getElementById('accuracy-display').textContent = accuracy + "%";
-                document.getElementById('combo-label').textContent = "本局最大連擊";
-                document.getElementById('max-combo-display').textContent = maxCombo;
-                document.getElementById('stats-correct').textContent = correctCount;
-                document.getElementById('stats-wrong').textContent = wrongCount;
+            document.getElementById('result-title').textContent = "🌟 最終成績單 🌟";
+            document.getElementById('result-title').classList.replace('text-slate-500', 'text-yellow-500');
+            
+            document.getElementById('score-label').textContent = "本局總分";
+            document.getElementById('final-score').textContent = score;
+            
+            document.getElementById('accuracy-label').textContent = "平均準確率";
+            document.getElementById('accuracy-display').textContent = accuracy + "%";
+            document.getElementById('combo-label').textContent = "最高連擊";
+            document.getElementById('max-combo-display').textContent = maxCombo;
+            document.getElementById('stats-correct').textContent = correctCount;
+            document.getElementById('stats-wrong').textContent = wrongCount;
 
-                document.getElementById('encouragement-text').innerHTML = `<span>${window.getEncouragementText(accuracy, maxCombo)}</span>`;
+            let finalRank = "";
+            if (score > 1000) finalRank = "S 級前額葉控制者！大腦超進化！";
+            else if (score > 600) finalRank = "A 級反應大師！煞車皮有夠厚！";
+            else finalRank = "B 級潛力股！今天神經元連結做得很棒！";
+            
+            document.getElementById('encouragement-text').innerHTML = `<span class="text-xl text-yellow-600 animate-pulse">👑 ${finalRank}</span>`;
 
-                nextBtn.classList.remove('hidden');
-                restBox.classList.add('hidden');
-                restartBtn.classList.add('hidden');
-                nextBtn.textContent = `進入第 ${currentLevel + 1} 關`;
+            const historyBox = document.getElementById('daily-history-box');
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '';
+            
+            if (todayData.attempts && todayData.attempts.length > 0) {
+                todayData.attempts.forEach((attempt, index) => {
+                    const isCurrent = index === todayData.attempts.length - 1;
+                    historyList.innerHTML += `<li class="flex justify-between border-b border-slate-100 py-1 ${isCurrent ? 'bg-indigo-50 px-2 rounded -mx-2' : ''}">
+                        <span>第 ${index + 1} 次挑戰 ${isCurrent ? '<span class="text-xs text-indigo-500 ml-1">(本次)</span>' : ''}</span>
+                        <span class="text-indigo-600">${attempt.score} 分</span>
+                    </li>`;
+                });
+                document.getElementById('history-count').textContent = todayData.attempts.length;
+                document.getElementById('history-total-score').textContent = todayData.totalScore;
+                historyBox.classList.remove('hidden');
+                historyBox.classList.add('flex');
+            }
+
+            updateUIState();
+
+            if (todayData.attempts && todayData.attempts.length >= MAX_DAILY_ATTEMPTS) {
+                restartBtn.textContent = "今日次數已滿，明天再來！";
+                restartBtn.classList.remove('bg-indigo-600', 'active:bg-indigo-700', 'active:scale-95');
+                restartBtn.classList.add('bg-slate-300', 'cursor-not-allowed');
+                restartBtn.onclick = null;
             } else {
-                let grandAccuracy = (grandTotalCorrect + grandTotalWrong) > 0 ? 
-                    Math.round((grandTotalCorrect / (grandTotalCorrect + grandTotalWrong)) * 100) : 0;
-
-                setTimeout(() => window.playSound('correct', 5), 100);
-                setTimeout(() => window.playSound('correct', 10), 300);
-                setTimeout(() => window.playSound('correct', 15), 500);
-
-                // 同步雲端資料期間的 UI 狀態
-                document.getElementById('result-title').textContent = db ? "☁️ 戰績同步中..." : "💾 成績計算中...";
-                document.getElementById('result-title').classList.replace('text-slate-800', 'text-slate-500');
-                nextBtn.classList.add('hidden');
-                restBox.classList.add('hidden');
-                restartBtn.classList.add('hidden'); 
-                
-                await saveGameRecord();
-
-                // 更新 UI 顯示為總成績
-                document.getElementById('result-title').textContent = "🌟 最終成績單 🌟";
-                document.getElementById('result-title').classList.replace('text-slate-500', 'text-yellow-500');
-                
-                document.getElementById('score-label').textContent = "五關累計總分";
-                document.getElementById('final-score').textContent = grandTotalScore;
-                
-                document.getElementById('accuracy-label').textContent = "平均總準確率";
-                document.getElementById('accuracy-display').textContent = grandAccuracy + "%";
-                document.getElementById('combo-label').textContent = "全場最高連擊";
-                document.getElementById('max-combo-display').textContent = globalMaxCombo;
-                document.getElementById('stats-correct').textContent = grandTotalCorrect;
-                document.getElementById('stats-wrong').textContent = grandTotalWrong;
-
-                let finalRank = "";
-                if (grandTotalScore > 1000) finalRank = "S 級前額葉控制者！大腦超進化！";
-                else if (grandTotalScore > 600) finalRank = "A 級反應大師！煞車皮有夠厚！";
-                else finalRank = "B 級潛力股！今天神經元連結做得很棒！";
-                
-                document.getElementById('encouragement-text').innerHTML = `<span class="text-xl text-yellow-600 animate-pulse">👑 ${finalRank}</span>`;
-
-                restBox.classList.remove('hidden');
-                
-                // 更新每日戰績歷史區塊
-                const historyBox = document.getElementById('daily-history-box');
-                const historyList = document.getElementById('history-list');
-                historyList.innerHTML = '';
-                
-                if (todayData.attempts && todayData.attempts.length > 0) {
-                    todayData.attempts.forEach((attempt, index) => {
-                        const isCurrent = index === todayData.attempts.length - 1;
-                        historyList.innerHTML += `<li class="flex justify-between border-b border-slate-100 py-1 ${isCurrent ? 'bg-indigo-50 px-2 rounded -mx-2' : ''}">
-                            <span>第 ${index + 1} 次挑戰 ${isCurrent ? '<span class="text-xs text-indigo-500 ml-1">(本次)</span>' : ''}</span>
-                            <span class="text-indigo-600">${attempt.score} 分</span>
-                        </li>`;
-                    });
-                    document.getElementById('history-count').textContent = todayData.attempts.length;
-                    document.getElementById('history-total-score').textContent = todayData.totalScore;
-                    historyBox.classList.remove('hidden');
-                    historyBox.classList.add('flex');
-                }
-
-                updateUIState(); // 更新每日剩餘次數狀態
-
-                if (todayData.attempts && todayData.attempts.length >= MAX_DAILY_ATTEMPTS) {
-                    restartBtn.textContent = "今日次數已滿，明天再來！";
-                    restartBtn.classList.remove('underline', 'text-slate-400', 'active:text-slate-600');
-                    restartBtn.classList.add('text-slate-300', 'cursor-not-allowed', 'no-underline');
-                    restartBtn.onclick = null; // 關閉點擊功能
-                }
-                restartBtn.classList.remove('hidden'); 
-
-                const msg = restMessages[Math.floor(Math.random() * restMessages.length)];
-                document.getElementById('rest-icon').textContent = msg.icon;
-                document.getElementById('rest-title').textContent = msg.title;
-                document.getElementById('rest-desc').textContent = msg.desc;
+                restartBtn.textContent = "重新挑戰一次";
+                restartBtn.classList.add('bg-indigo-600', 'active:bg-indigo-700', 'active:scale-95');
+                restartBtn.classList.remove('bg-slate-300', 'cursor-not-allowed');
+                restartBtn.onclick = resetToStart;
             }
-        }
+            restartBtn.classList.remove('hidden'); 
 
-        window.goToNextLevel = function() {
-            if (currentLevel < 5) {
-                window.startGame(currentLevel + 1);
-            }
+            const msg = restMessages[Math.floor(Math.random() * restMessages.length)];
+            document.getElementById('rest-icon').textContent = msg.icon;
+            document.getElementById('rest-title').textContent = msg.title;
+            document.getElementById('rest-desc').textContent = msg.desc;
+            restBox.classList.remove('hidden');
         }
 
         window.resetToStart = function() {
-            if (todayData.attempts && todayData.attempts.length >= MAX_DAILY_ATTEMPTS) return; // 二次防護
+            if (todayData.attempts && todayData.attempts.length >= MAX_DAILY_ATTEMPTS) return; 
             resultScreen.classList.add('hidden');
             startScreen.classList.remove('hidden');
             document.getElementById('result-title').classList.remove('text-yellow-500');
             document.getElementById('result-title').classList.add('text-slate-800');
-            currentLevel = 1;
         }
 
         window.updateScoreDisplay = function() {
