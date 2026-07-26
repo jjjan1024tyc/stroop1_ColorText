@@ -74,32 +74,6 @@
                 <span class="text-sm font-bold text-slate-400 uppercase tracking-wider" id="level-title">階段 1：極速單字</span>
                 <span id="timer-display" class="text-4xl font-black text-slate-700 font-mono">50.0s</span>
             </div>
-        </div>
-        
-        <div class="bg-blue-50 border-l-8 border-blue-500 p-6 rounded-r-2xl max-w-lg w-full shadow-sm">
-            <h3 class="text-2xl font-bold mb-4 text-blue-800">遊戲規則：</h3>
-            <p class="text-xl leading-relaxed text-slate-700">
-                請用最快的速度，點擊<strong class="text-red-500 font-black text-2xl mx-1">文字的顏色</strong>！<br>
-                注意：第3關開始會有「雙字連擊」喔！<br>
-                <span class="text-sm text-slate-500 mt-2 block">🔔 建議開啟聲音，體驗街機打擊感！</span>
-            </p>
-        </div>
-
-        <div class="text-center w-full max-w-md mt-4">
-            <button id="start-btn-container" onclick="initAudioAndStart(1)" class="bg-indigo-600 text-white text-3xl font-bold py-6 px-16 rounded-full shadow-lg transform transition w-full opacity-50 cursor-not-allowed" disabled>
-                <span id="start-btn-text">系統連線中...</span>
-            </button>
-            <div id="limit-display" class="text-sm font-bold text-slate-500 mt-3 h-5">連線同步中...</div>
-        </div>
-    </div>
-
-    <!-- 遊戲主要畫面 -->
-    <div id="play-screen" class="flex-1 flex flex-col hidden h-full w-full">
-        <div class="flex justify-between items-center p-4 md:p-6 bg-white/80 backdrop-blur-sm shadow-sm h-24 shrink-0 z-10">
-            <div class="flex flex-col">
-                <span class="text-sm font-bold text-slate-400 uppercase tracking-wider" id="level-title">第 1 關</span>
-                <span id="timer-display" class="text-4xl font-black text-slate-700 font-mono">30.0s</span>
-            </div>
             
             <div class="flex flex-col items-center">
                 <span class="text-sm font-bold text-slate-400 uppercase tracking-wider">連擊</span>
